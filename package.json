@@ -1,0 +1,39 @@
+{
+  "name": "voice-creation",
+  "version": "1.0.0",
+  "description": "Voice-first AI assistant that helps users design, generate and edit web apps via conversation.",
+  "main": "dist/ideation.js",
+  "scripts": {
+    "agent": "ts-node-dev --respawn --transpile-only agents/ideation.ts",
+    "frontend": "next dev -p 3001",
+    "dev": "concurrently -k \"npm:agent\" \"npm:frontend\"",
+    "build": "tsc",
+    "start": "node dist/ideation.js",
+    "frontend:build": "next build",
+    "frontend:start": "next start -p 3001",
+    "test:codegen": "ts-node test/testCodeGen.ts",
+    "test:codegen:custom": "ts-node test/testCodeGen.ts --custom"
+  },
+  "keywords": [],
+  "license": "MIT",
+  "dependencies": {
+    "@deepgram/sdk": "^4.1.0",
+    "axios": "^1.6.5",
+    "dotenv": "^16.4.5",
+    "next": "^14.2.1",
+    "openai": "^4.104.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.9",
+    "@types/react": "^18.2.21",
+    "@types/react-dom": "^18.2.7",
+    "@types/ws": "^8.5.10",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}

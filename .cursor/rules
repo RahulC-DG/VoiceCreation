@@ -1,0 +1,20 @@
+- Always strive for the simplest approach.
+- You MUST use evidence based deductive reasoning. Debug logs provided are to be accepted as 100% correct.
+- If you don't have enough context to make a high confidence suggestion, just ask me and I'll provide.
+- If you make changes to a file, you strive to be as surgical as possible in your updates -- and fervently aim to avoid impacting existing functions. This includes avoiding errantly removing logging or print statements.
+- Avoid duplication of code whenever possible, which means checking for other areas of the codebase that already have similar code and functionality,
+- When fixing an issue or bug, do not introduce a new pattern or technology without first exhausting all options for the existing implementation. And if you finally do this, make sure to remove the old implementation afterwards so we don't have duplicate logic.
+- Keep the codebase very clean and organized
+- try to keep files under 500 lines of code, if files exceed this threshold, suggest refactoring.
+- Maintain Atomicity: Each component must have a single, clearly defined responsibility.
+- Enforce minimal dependencies**: Use standard libraries over external packages whenever possible.
+- Follow clean architecture: Maintain clear separation between message handling, tool execution, and business logic.
+- **Input validation first**: Always validate inputs before processing them.
+- **Fail gracefully**: Return informative error messages when operations fail.
+- **Provide explicit acknowledgements**: Confirm receipt and understanding of instructions.
+- **Include error context**: Error messages should include information about what went wrong and potential remedies.
+- **Prioritize readability**: Write code to be understood by humans first, machines second.
+- **Document constraints**: Clearly state assumptions and limitations.
+- **Use meaningful variable names**: Names should indicate purpose and content.
+- **Apply consistent formatting**: Follow a single style throughout the codebase.
+- **Avoid global state**: Encapsulate state within appropriate scopes.
