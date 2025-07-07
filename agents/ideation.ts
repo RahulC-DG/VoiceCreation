@@ -26,6 +26,10 @@ interface ConversationState {
 
 let conversationState: ConversationState = { phase: 'ideation' };
 
+// Audio chunk tracking
+let audioChunkSequence = 0;
+let lastAudioTimestamp = 0;
+
 // Function to extract YAML from conversation text
 function extractYamlFromText(text: string): string | null {
   // Try multiple patterns to extract YAML
@@ -199,11 +203,11 @@ async function connectToAgent() {
       audio: {
         input: {
           encoding: 'linear16',
-          sample_rate: 16000
+          sample_rate: 24000  // Match Deepgram starter - 24kHz
         },
         output: {
           encoding: 'linear16',
-          sample_rate: 16000,  // Keep consistent with input for simplicity
+          sample_rate: 24000,  // Match Deepgram starter - 24kHz
           container: 'none'
         }
       },
@@ -320,22 +324,22 @@ If they approve, respond briefly like "Perfect! Let's build it!" and stop.`,
     // Set up message handler
     agentWs.on('message', async (data: Buffer) => {
       try {
-        // Better detection of JSON vs binary data
-        const dataStr = data.toString('utf8');
+        // Improved detection of JSON vs binary data - match Deepgram starter approach
         let isJson = false;
+        let message: any = null;
         
         try {
           // Try to parse as JSON first
-          JSON.parse(dataStr);
+          const dataStr = data.toString('utf8');
+          message = JSON.parse(dataStr);
           isJson = true;
         } catch {
           // Not JSON, treat as binary audio data
           isJson = false;
         }
 
-        if (isJson) {
+        if (isJson && message) {
           // Handle JSON messages
-          const message = JSON.parse(dataStr);
           console.log('Received message:', message.type);
 
           if (message.type === 'Welcome') {
@@ -502,14 +506,24 @@ If they approve, respond briefly like "Perfect! Let's build it!" and stop.`,
             console.log('Other message:', message);
           }
         } else {
-          // Handle binary audio data
+          // Handle binary audio data - send directly like Deepgram starter
+          audioChunkSequence++;
+          const currentTime = Date.now();
+          const timeSinceLastChunk = lastAudioTimestamp ? currentTime - lastAudioTimestamp : 0;
+          lastAudioTimestamp = currentTime;
+          
+          console.log(`🎵 [${audioChunkSequence}] Audio chunk: ${data.length} bytes, +${timeSinceLastChunk}ms since last`);
+          
           if (browserWs?.readyState === WebSocket.OPEN) {
             try {
               // Send the audio buffer directly without additional conversion
               browserWs.send(data, { binary: true });
+              console.log(`📤 [${audioChunkSequence}] Forwarded to browser successfully`);
             } catch (error) {
-              console.error('Error sending audio to browser:', error);
+              console.error(`❌ [${audioChunkSequence}] Error sending audio to browser:`, error);
             }
+          } else {
+            console.warn(`⚠️ [${audioChunkSequence}] Browser WebSocket not open, dropping audio chunk`);
           }
         }
       } catch (error) {
@@ -548,10 +562,18 @@ If they approve, respond briefly like "Perfect! Let's build it!" and stop.`,
 // Create WebSocket server for browser clients
 const wss = new WebSocketServer({ server });
 let browserWs: WebSocket | null = null;
+let connectionCount = 0;
 
 wss.on('connection', async (ws) => {
-  // Only log critical connection events
-  console.log('Browser client connected');
+  connectionCount++;
+  console.log(`🔌 Browser client connected (connection #${connectionCount})`);
+  
+  // Check if there's already a browser connection
+  if (browserWs && browserWs.readyState === WebSocket.OPEN) {
+    console.warn('⚠️ Multiple browser connections detected! Closing previous connection.');
+    browserWs.close();
+  }
+  
   browserWs = ws;
 
   // Reset conversation state for new connection
@@ -570,11 +592,13 @@ wss.on('connection', async (ws) => {
   });
 
   ws.on('close', async () => {
+    console.log(`🔌 Browser client disconnected (connection #${connectionCount})`);
     if (agent) {
       await agent.disconnect();
     }
-    browserWs = null;
-    console.log('Browser client disconnected');
+    if (browserWs === ws) {
+      browserWs = null;
+    }
   });
 
   ws.on('error', (error) => {

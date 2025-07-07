@@ -26,6 +26,12 @@ export default function Home() {
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const currentAudioRef = useRef<AudioBufferSourceNode | null>(null);
+  const audioBufferRef = useRef<ArrayBuffer[]>([]);
+  const bufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const chunkCounterRef = useRef<number>(0);
+  const frontendSequenceRef = useRef<number>(0);
+  const isPlayingRef = useRef<boolean>(false);
   const [recording, setRecording] = useState(false);
 
   const connect = async () => {
@@ -61,6 +67,11 @@ export default function Home() {
           }
         } catch (_) {}
       } else {
+        // Handle binary audio data
+        frontendSequenceRef.current++;
+        const frontendSeq = frontendSequenceRef.current;
+        
+        console.log(`🎧 [Frontend-${frontendSeq}] Received audio data: ${evt.data.byteLength} bytes`);
         playAudio(evt.data);
       }
     };
@@ -112,7 +123,7 @@ export default function Home() {
     if (recording) return;
     const stream = await navigator.mediaDevices.getUserMedia({ 
       audio: {
-        sampleRate: 16000,
+        sampleRate: 24000,  // Match backend - 24kHz
         channelCount: 1,
         echoCancellation: true,
         noiseSuppression: true,
@@ -121,22 +132,16 @@ export default function Home() {
     });
     streamRef.current = stream;
     
-    // Create recording AudioContext with 16kHz to match backend
+    // Create single AudioContext with 24kHz for both recording and playback
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ 
-      sampleRate: 16000 
+      sampleRate: 24000  // Match backend exactly
     });
     audioCtxRef.current = audioCtx;
+    playbackCtxRef.current = audioCtx;  // Use same context for playback
     
-    // Create separate playback AudioContext with default sample rate for better TTS quality
-    const playbackCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    playbackCtxRef.current = playbackCtx;
-    
-    // Resume contexts if suspended (required by modern browsers)
+    // Resume context if suspended (required by modern browsers)
     if (audioCtx.state === 'suspended') {
       await audioCtx.resume();
-    }
-    if (playbackCtx.state === 'suspended') {
-      await playbackCtx.resume();
     }
     
     const source = audioCtx.createMediaStreamSource(stream);
@@ -165,47 +170,165 @@ export default function Home() {
     streamRef.current = null;
     audioCtxRef.current?.close();
     audioCtxRef.current = null;
+    playbackCtxRef.current = null;  // Clear the shared reference
     setRecording(false);
   };
 
   const playAudio = async (arrayBuf: ArrayBuffer) => {
-    const playbackCtx = playbackCtxRef.current;
-    if (!playbackCtx) {
-      console.error('No playback AudioContext available');
+    chunkCounterRef.current++;
+    const chunkId = chunkCounterRef.current;
+    
+    console.log(`🎵 [Chunk-${chunkId}] Processing audio (${arrayBuf.byteLength} bytes), current buffer: ${audioBufferRef.current.length} chunks, isPlaying: ${isPlayingRef.current}`);
+    
+    // Add chunk to buffer
+    audioBufferRef.current.push(arrayBuf);
+    
+    // If already playing, just add to buffer and return
+    if (isPlayingRef.current) {
+      console.log(`⏸️ [Chunk-${chunkId}] Audio already playing, adding to buffer (${audioBufferRef.current.length} chunks)`);
       return;
     }
     
-    // Ensure AudioContext is running
-    if (playbackCtx.state === 'suspended') {
-      await playbackCtx.resume();
+    // Clear existing timeout
+    if (bufferTimeoutRef.current) {
+      console.log(`⏰ [Chunk-${chunkId}] Clearing previous timeout`);
+      clearTimeout(bufferTimeoutRef.current);
+      bufferTimeoutRef.current = null;
+    }
+    
+    // Play immediately if we have 3+ chunks, otherwise set a very short timeout
+    const bufferSize = audioBufferRef.current.length;
+    if (bufferSize >= 3) {
+      console.log(`🚀 [Chunk-${chunkId}] Playing immediately (${bufferSize} chunks)`);
+      playBufferedAudio(chunkId);
+    } else {
+      // Very short timeout only for the first 1-2 chunks
+      bufferTimeoutRef.current = setTimeout(() => {
+        if (!isPlayingRef.current) { // Double-check we're not playing
+          console.log(`🎬 [Chunk-${chunkId}] Quick timeout (5ms), playing ${audioBufferRef.current.length} chunks`);
+          playBufferedAudio(chunkId);
+        }
+      }, 5); // Minimal 5ms delay
+    }
+  };
+
+  const playBufferedAudio = async (triggerChunkId: number) => {
+    const playbackCtx = playbackCtxRef.current;
+    if (!playbackCtx || audioBufferRef.current.length === 0 || isPlayingRef.current) {
+      console.log(`⚠️ [Trigger-${triggerChunkId}] Cannot play: ctx=${!!playbackCtx}, buffer=${audioBufferRef.current.length}, isPlaying=${isPlayingRef.current}`);
+      return;
+    }
+    
+    // Mark as playing
+    isPlayingRef.current = true;
+    
+    const chunksToPlay = audioBufferRef.current.length;
+    const playbackId = `${triggerChunkId}-${chunksToPlay}chunks`;
+    console.log(`🔄 [Playback-${playbackId}] Starting playback of ${chunksToPlay} buffered chunks`);
+    
+    // Stop any currently playing audio
+    if (currentAudioRef.current) {
+      console.log(`⏹️ [Playback-${playbackId}] Stopping previous audio for new buffered segment`);
+      try {
+        currentAudioRef.current.stop();
+      } catch (e) {
+        // Ignore errors from stopping already stopped sources
+      }
+      currentAudioRef.current = null;
     }
     
     try {
-      const int16 = new Int16Array(arrayBuf);
+      // Combine all buffered chunks
+      const totalBytes = audioBufferRef.current.reduce((sum, buf) => sum + buf.byteLength, 0);
+      console.log(`📊 [Playback-${playbackId}] Combining ${chunksToPlay} chunks into ${totalBytes} total bytes`);
+      
+      const combinedBuffer = new ArrayBuffer(totalBytes);
+      const combinedView = new Uint8Array(combinedBuffer);
+      
+      let offset = 0;
+      for (let i = 0; i < audioBufferRef.current.length; i++) {
+        const chunk = audioBufferRef.current[i];
+        const chunkSize = chunk.byteLength;
+        combinedView.set(new Uint8Array(chunk), offset);
+        console.log(`📦 [Playback-${playbackId}] Chunk ${i+1}/${chunksToPlay}: ${chunkSize} bytes at offset ${offset}`);
+        offset += chunkSize;
+      }
+      
+      // Clear buffer
+      const processedChunks = audioBufferRef.current.length;
+      audioBufferRef.current = [];
+      console.log(`🧹 [Playback-${playbackId}] Buffer cleared (processed ${processedChunks} chunks), ready for next batch`);
+      
+      // Convert combined buffer to audio
+      const int16 = new Int16Array(combinedBuffer);
       const float32 = new Float32Array(int16.length);
       
-      // Convert Int16 to Float32 with proper scaling
       for (let i = 0; i < int16.length; i++) {
         float32[i] = int16[i] / 32768.0;
       }
       
-      // Audio is 16kHz from backend - create buffer at correct sample rate
-      const sourceRate = 16000;
-      const buffer = playbackCtx.createBuffer(1, float32.length, sourceRate);
+      const buffer = playbackCtx.createBuffer(1, float32.length, 24000);
       buffer.getChannelData(0).set(float32);
       
-      const src = playbackCtx.createBufferSource();
-      src.buffer = buffer;
-      src.connect(playbackCtx.destination);
-      src.start();
+      const source = playbackCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(playbackCtx.destination);
+      
+      // Track current audio source
+      currentAudioRef.current = source;
+      
+      // Clear reference when audio ends and check for more chunks
+      source.onended = () => {
+        console.log(`✅ [Playback-${playbackId}] Audio segment completed (${buffer.duration.toFixed(3)}s duration)`);
+        currentAudioRef.current = null;
+        isPlayingRef.current = false;
+        
+        // Check if there are more chunks to play
+        if (audioBufferRef.current.length > 0) {
+          console.log(`🔄 [Playback-${playbackId}] More chunks available (${audioBufferRef.current.length}), starting next playback`);
+          // Small delay to prevent rapid-fire playback
+          setTimeout(() => {
+            if (!isPlayingRef.current && audioBufferRef.current.length > 0) {
+              playBufferedAudio(triggerChunkId + 1000); // Use different ID for queued playback
+            }
+          }, 10);
+        }
+      };
+      
+      console.log(`▶️ [Playback-${playbackId}] Starting audio: ${buffer.duration.toFixed(3)}s duration from ${processedChunks} chunks`);
+      source.start();
       
     } catch (error) {
-      console.error('Error playing audio:', error);
+      console.error(`❌ [Playback-${playbackId}] Audio buffering error:`, error);
+      currentAudioRef.current = null;
+      isPlayingRef.current = false;
+      // Clear buffer on error to prevent stuck state
+      audioBufferRef.current = [];
     }
   };
 
   const cleanup = () => {
     stopMic();
+    
+    // Clear buffer timeout
+    if (bufferTimeoutRef.current) {
+      clearTimeout(bufferTimeoutRef.current);
+      bufferTimeoutRef.current = null;
+    }
+    
+    // Clear audio buffer
+    audioBufferRef.current = [];
+    
+    // Stop any playing audio
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.stop();
+      } catch (e) {
+        // Ignore errors
+      }
+      currentAudioRef.current = null;
+    }
+    
     playbackCtxRef.current?.close();
     playbackCtxRef.current = null;
     wsRef.current = null;

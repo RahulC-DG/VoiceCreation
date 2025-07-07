@@ -47,6 +47,17 @@ export async function runOpenAICodegen(
 
 CRITICAL: NEVER CREATE PLAIN WHITE PAGES WITH JUST TEXT. Every page must be visually rich, professionally designed, and immediately impressive.
 
+CRITICAL ERROR PREVENTION (MUST FOLLOW TO PREVENT BUILD ERRORS):
+- ALWAYS use proper React component imports/exports - never mix default and named imports
+- ALWAYS export components as default exports: "export default function ComponentName() {}"
+- ALWAYS import components as default imports: "import ComponentName from './ComponentName'"
+- NEVER use undefined imports - double-check all import paths and component names
+- ALWAYS use proper TypeScript types for all props and state
+- ALWAYS handle loading states and error boundaries
+- ALWAYS test that all imports resolve correctly
+- ALWAYS include proper package.json scripts section
+- ALWAYS create mandatory configuration files with exact content
+
 IMPORTANT REQUIREMENTS:
 1. Return ONLY valid JSON in this exact format: {"files": [{"path": "relative/path/file.ext", "content": "file content here"}]}
 2. Create a complete Next.js 14 project with TypeScript
@@ -240,6 +251,95 @@ DESIGN INSPIRATION & EXAMPLES:
 - Include interactive elements that guide users through the experience
 - Add proper loading states, error messages, and user feedback
 - Create cohesive color schemes that reinforce brand personality
+
+MANDATORY REACT COMPONENT STANDARDS:
+- ALWAYS use functional components with TypeScript
+- ALWAYS export components as default exports: "export default function ComponentName() {}"
+- ALWAYS import components as default imports: "import ComponentName from './ComponentName'"
+- NEVER mix default and named imports for components
+- ALWAYS define proper TypeScript interfaces for props
+- ALWAYS handle loading and error states
+- ALWAYS use proper React hooks (useState, useEffect, etc.)
+- ALWAYS include proper error boundaries for production apps
+
+MANDATORY CONFIGURATION FILES:
+18. package.json - MUST include these exact scripts:
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  }
+}
+
+19. next.config.js - MUST include:
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  swcMinify: true,
+  experimental: {
+    appDir: false
+  }
+}
+module.exports = nextConfig
+
+20. tsconfig.json - MUST include:
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "es6"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
+MANDATORY FILE STRUCTURE:
+pages/
+  _app.tsx (with proper Tailwind CSS imports)
+  _document.tsx (with proper HTML structure)
+  index.tsx (main landing page)
+  404.tsx (custom 404 page)
+components/
+  (organized by feature/purpose)
+styles/
+  globals.css (with Tailwind directives)
+public/
+  (static assets)
+
+ERROR PREVENTION CHECKLIST:
+✓ All React components use default exports
+✓ All component imports use default imports
+✓ All TypeScript interfaces are properly defined
+✓ All dependencies are included in package.json
+✓ All configuration files are created
+✓ All file paths are correct and case-sensitive
+✓ All imports resolve to existing files
+✓ All Tailwind classes are valid
+✓ All icons are imported from lucide-react
+✓ All components handle loading/error states
+✓ All pages are responsive and accessible
 
 MANDATORY SECTIONS FOR LANDING PAGES:
 1. Navigation bar with logo and menu items
