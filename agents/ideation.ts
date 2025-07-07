@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { startCodeGeneration } from './codeGen';
+import archiver from 'archiver';
 
 // Load environment variables
 dotenv.config();
@@ -165,6 +166,17 @@ function generateSessionId(): string {
 
 // Create HTTP server to serve the static HTML file
 const server = http.createServer((req, res) => {
+  // Add CORS headers for frontend requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+
   if (req.url === '/') {
     fs.readFile(path.join(__dirname, '../static/index.html'), (err, data) => {
       if (err) {
@@ -175,8 +187,73 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(data);
     });
+  } else if (req.url?.startsWith('/download/') && req.method === 'GET') {
+    // Handle download requests
+    const sessionId = req.url.split('/download/')[1];
+    handleDownloadRequest(sessionId, res);
+  } else {
+    res.writeHead(404);
+    res.end('Not found');
   }
 });
+
+// Function to handle download requests
+async function handleDownloadRequest(sessionId: string, res: http.ServerResponse) {
+  try {
+    console.log(`📥 Download requested for session: ${sessionId}`);
+    
+    // Path to the generated project
+    const projectPath = path.join(process.cwd(), 'generated', sessionId, 'repo');
+    
+    // Check if the project exists
+    if (!fs.existsSync(projectPath)) {
+      console.log(`❌ Project not found: ${projectPath}`);
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Project not found' }));
+      return;
+    }
+
+    // Set response headers for ZIP download
+    res.writeHead(200, {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="voice-creation-${sessionId}.zip"`,
+      'Cache-Control': 'no-cache'
+    });
+
+    // Create ZIP archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
+
+    // Handle archive errors
+    archive.on('error', (err: Error) => {
+      console.error('❌ Archive error:', err);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to create archive' }));
+      }
+    });
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Add all files from the project directory
+    console.log(`📦 Creating ZIP archive from: ${projectPath}`);
+    archive.directory(projectPath, false);
+
+    // Finalize the archive
+    await archive.finalize();
+    
+    console.log(`✅ ZIP download completed for session: ${sessionId}`);
+    
+  } catch (error) {
+    console.error('❌ Download error:', error);
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Internal server error' }));
+    }
+  }
+}
 
 // Function to connect to Deepgram Voice Agent V1
 async function connectToAgent() {

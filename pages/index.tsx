@@ -16,10 +16,12 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<string>('Disconnected');
   const [currentPhase, setCurrentPhase] = useState<'ideation' | 'prompt_review' | 'code_generation' | 'voice_editing'>('ideation');
-  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [codeGenStatus, setCodeGenStatus] = useState<string>('');
   const [codeGenLogs, setCodeGenLogs] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [projectSessionId, setProjectSessionId] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -88,6 +90,9 @@ export default function Home() {
       case 'codegen-start':
         setCodeGenStatus('🚀 Code generation started...');
         setCodeGenLogs([]);
+        if (event.sessionId) {
+          setProjectSessionId(event.sessionId);
+        }
         break;
         
       case 'codegen-validation-passed':
@@ -337,6 +342,55 @@ export default function Home() {
   const openInNewTab = () => {
     if (previewUrl) {
       window.open(previewUrl, '_blank');
+    }
+  };
+
+  const downloadCode = async () => {
+    if (!projectSessionId) {
+      alert('No project available to download');
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      // Request the backend to create a ZIP file of the generated code
+      const response = await fetch(`http://localhost:3000/download/${projectSessionId}`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Project not found or has been cleaned up');
+        } else if (response.status === 500) {
+          throw new Error('Server error - please ensure archiver dependency is installed');
+        } else {
+          throw new Error(`Download failed: ${response.statusText}`);
+        }
+      }
+
+      // Get the ZIP file as a blob
+      const blob = await response.blob();
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `voice-creation-${projectSessionId}.zip`;
+      
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to download code. Please try again.';
+      alert(`Download Error: ${errorMessage}\n\nIf this is the first time using the download feature, please run:\nnpm install archiver @types/archiver`);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -596,33 +650,66 @@ export default function Home() {
             </div>
             
             {previewUrl && (
-              <button
-                onClick={openInNewTab}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0',
-                  background: '#ffffff',
-                  color: '#475569',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#f8fafc';
-                  e.currentTarget.style.borderColor = '#cbd5e1';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = '#ffffff';
-                  e.currentTarget.style.borderColor = '#e2e8f0';
-                }}
-              >
-                🔗 Open in New Tab
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={downloadCode}
+                  disabled={isDownloading || !projectSessionId}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #10b981',
+                    background: isDownloading ? '#f3f4f6' : '#10b981',
+                    color: isDownloading ? '#9ca3af' : '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: isDownloading || !projectSessionId ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    if (!isDownloading && projectSessionId) {
+                      e.currentTarget.style.background = '#059669';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!isDownloading && projectSessionId) {
+                      e.currentTarget.style.background = '#10b981';
+                    }
+                  }}
+                >
+                  {isDownloading ? '⏳ Downloading...' : '📥 Download Code'}
+                </button>
+                
+                <button
+                  onClick={openInNewTab}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    background: '#ffffff',
+                    color: '#475569',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                  }}
+                >
+                  🔗 Open in New Tab
+                </button>
+              </div>
             )}
           </div>
 
