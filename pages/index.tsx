@@ -35,6 +35,33 @@ export default function Home() {
   const frontendSequenceRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(false);
   const [recording, setRecording] = useState(false);
+  
+  // Ref for auto-scrolling messages container
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const codeGenLogsRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Auto-scroll code generation logs
+  const scrollCodeGenLogsToBottom = () => {
+    if (codeGenLogsRef.current) {
+      codeGenLogsRef.current.scrollTop = codeGenLogsRef.current.scrollHeight;
+    }
+  };
+
+  // Effect to scroll when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Effect to scroll when code generation logs change
+  useEffect(() => {
+    scrollCodeGenLogsToBottom();
+  }, [codeGenLogs]);
 
   const connect = async () => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
@@ -475,14 +502,18 @@ export default function Home() {
         </div>
 
         {/* Messages */}
-        <div style={{ 
-          flex: 1,
-          overflowY: 'auto',
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px'
-        }}>
+        <div 
+          ref={messagesContainerRef}
+          style={{ 
+            flex: 1,
+            overflowY: 'auto',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            scrollBehavior: 'smooth'
+          }}
+        >
           {messages.map((m, idx) => (
             <div key={idx} style={{ 
               display: 'flex',
@@ -502,6 +533,8 @@ export default function Home() {
               </div>
             </div>
           ))}
+          {/* Invisible element to scroll to */}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Code Generation Status */}
@@ -520,17 +553,21 @@ export default function Home() {
               {codeGenStatus}
             </div>
             {codeGenLogs.length > 0 && (
-              <div style={{ 
-                maxHeight: '100px',
-                overflowY: 'auto',
-                fontSize: '12px',
-                color: '#64748b',
-                fontFamily: 'monospace',
-                background: '#ffffff',
-                padding: '8px',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0'
-              }}>
+              <div 
+                ref={codeGenLogsRef}
+                style={{ 
+                  maxHeight: '100px',
+                  overflowY: 'auto',
+                  fontSize: '12px',
+                  color: '#64748b',
+                  fontFamily: 'monospace',
+                  background: '#ffffff',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e8f0',
+                  scrollBehavior: 'smooth'
+                }}
+              >
                 {codeGenLogs.slice(-10).map((log, idx) => (
                   <div key={idx}>{log}</div>
                 ))}
