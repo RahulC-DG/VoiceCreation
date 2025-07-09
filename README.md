@@ -24,8 +24,8 @@ A voice-first AI assistant that helps users design and build web applications th
 
 ### **AI & Voice Processing**
 - **Language Model**: OpenAI GPT-4 (Advanced text generation and reasoning)
-- **Speech-to-Text**: Deepgram Nova-2 (Real-time speech recognition)
-- **Text-to-Speech**: Deepgram Aura (Natural voice synthesis)
+- **Speech-to-Text**: Deepgram Nova-3 (Real-time speech recognition)
+- **Text-to-Speech**: Deepgram Aura-2 (Natural voice synthesis)
 - **Audio Processing**: Web Audio API (Browser-based audio handling)
 - **Sample Rate**: 24kHz (High-quality audio streaming)
 
