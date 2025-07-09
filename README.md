@@ -32,7 +32,7 @@ A voice-first AI assistant that helps users design and build web applications th
 ### **Backend & Communication**
 - **WebSocket Server**: ws (Real-time bidirectional communication)
 - **HTTP Server**: Node.js built-in (Static file serving)
-- **Code Generation**: OpenAI API (Dynamic application creation)
+- **Code Generation**: Anthropic API (Dynamic application creation)
 - **Local Preview**: Child process spawning (Development server management)
 
 ### **Development Tools**
@@ -141,7 +141,7 @@ Voice Creation follows a 4-phase workflow:
 
 - **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
 - **Backend**: Node.js, WebSocket (ws)
-- **AI**: Anthropic Claude, Deepgram (Speech-to-Text & Text-to-Speech)
+- **AI**: OpenAI GPT-4, Anthropic Claude, Deepgram (Speech-to-Text & Text-to-Speech)
 - **Voice Processing**: Real-time audio streaming with 16kHz sampling
 
 ## 📋 Prerequisites
@@ -169,6 +169,7 @@ Voice Creation follows a 4-phase workflow:
    ```env
    ANTHROPIC_API_KEY=your_anthropic_api_key_here
    DEEPGRAM_API_KEY=your_deepgram_api_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
    ```
 
 4. **Start the development server**
