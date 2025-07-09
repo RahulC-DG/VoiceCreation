@@ -475,7 +475,7 @@ export default function Home() {
             color: '#1e293b',
             marginBottom: '8px'
           }}>
-            VoiceCreation
+            VocalFlow
           </h1>
           <div style={{ 
             display: 'flex',

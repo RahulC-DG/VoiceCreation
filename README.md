@@ -141,14 +141,14 @@ Voice Creation follows a 4-phase workflow:
 
 - **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
 - **Backend**: Node.js, WebSocket (ws)
-- **AI**: OpenAI GPT-4, Deepgram (Speech-to-Text & Text-to-Speech)
+- **AI**: Anthropic Claude, Deepgram (Speech-to-Text & Text-to-Speech)
 - **Voice Processing**: Real-time audio streaming with 16kHz sampling
 
 ## 📋 Prerequisites
 
 - Node.js 18+ 
 - npm or yarn
-- OpenAI API key
+- Anthropic API key
 - Deepgram API key
 
 ## 🔧 Setup
@@ -167,7 +167,7 @@ Voice Creation follows a 4-phase workflow:
 3. **Set up environment variables**
    Create a `.env` file in the root directory:
    ```env
-   OPENAI_API_KEY=your_openai_api_key_here
+   ANTHROPIC_API_KEY=your_anthropic_api_key_here
    DEEPGRAM_API_KEY=your_deepgram_api_key_here
    ```
 
@@ -290,7 +290,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Verify Deepgram API key is set correctly
 
 **Code generation failing?**
-- Verify OpenAI API key is valid and has sufficient credits
+- Verify Anthropic API key is valid and has sufficient credits
 - Check console logs for detailed error messages
 - Ensure all dependencies are installed
 
@@ -306,6 +306,102 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **🌐 Direct Deployment**: Deploy generated apps to hosting platforms
 - **📊 Analytics Integration**: Track user interactions and app performance
 - **🎨 Custom Design Systems**: Brand-specific design templates
+
+---
+
+## 🔄 Alternative Setup: Using OpenAI Codegen
+
+By default, Voice Creation uses Anthropic Claude for code generation. However, you can also use OpenAI's GPT models for code generation. Here's how to set it up:
+
+### **Prerequisites for OpenAI Setup**
+- OpenAI API key with GPT-4 access
+- All other requirements remain the same
+
+### **Environment Variables**
+Add your OpenAI API key to your `.env` file:
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+DEEPGRAM_API_KEY=your_deepgram_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+### **Code Generation Changes**
+The system includes both OpenAI and Claude code generation utilities:
+
+- **Default**: `utils/claudeCodegen.ts` (Anthropic Claude)
+- **Alternative**: `utils/openaiCodegen.ts` (OpenAI GPT-4)
+
+### **Switching to OpenAI**
+To use OpenAI for code generation, modify the import in `agents/codeGen.ts`:
+
+```typescript
+// Change from:
+import { runClaudeCodegen } from '../utils/claudeCodegen';
+
+// To:
+import { runOpenAICodegen } from '../utils/openaiCodegen';
+```
+
+Then update the function call:
+```typescript
+// Change from:
+const result = await runClaudeCodegen(yamlPrompt, sessionId, events);
+
+// To:
+const result = await runOpenAICodegen(yamlPrompt, sessionId, events);
+```
+
+### **OpenAI-Specific Features**
+- **Model**: Uses GPT-4 for code generation
+- **Enhanced Prompting**: Optimized prompts for OpenAI's model behavior
+- **Consistent Output**: Same JSON format and file structure as Claude
+- **Error Handling**: Robust parsing for OpenAI's response format
+
+### **Performance Comparison**
+| Feature | Claude | OpenAI GPT-4 |
+|---------|---------|--------------|
+| Code Quality | Excellent | Excellent |
+| Response Speed | Fast | Moderate |
+| Context Handling | Superior | Good |
+| Cost | Lower | Higher |
+| Availability | High | High |
+
+### **Testing OpenAI Codegen**
+Test the OpenAI code generation specifically:
+```bash
+# Test with OpenAI (modify test file to use OpenAI)
+npm run test:codegen
+```
+
+### **Troubleshooting OpenAI Setup**
+**API Key Issues:**
+- Ensure your OpenAI API key has GPT-4 access
+- Check your OpenAI account has sufficient credits
+- Verify the API key is correctly set in `.env`
+
+**Model Limitations:**
+- OpenAI has rate limits that may affect generation speed
+- Large applications may hit token limits (use shorter descriptions)
+- Monitor your OpenAI usage dashboard for costs
+
+**Response Format:**
+- OpenAI responses may require different JSON parsing
+- Check console logs for parsing errors
+- The system includes fallback parsing for both models
+
+### **Best Practices for OpenAI**
+1. **Keep descriptions concise** to avoid token limits
+2. **Monitor API usage** to control costs
+3. **Test with simple apps first** before complex projects
+4. **Use specific, clear language** for better results
+
+### **Switching Back to Claude**
+To revert to Claude, simply change the imports back in `agents/codeGen.ts`:
+```typescript
+import { runClaudeCodegen } from '../utils/claudeCodegen';
+```
+
+Both systems generate the same high-quality applications with identical features and file structures. Choose based on your API preferences, cost considerations, and availability requirements.
 
 ---
 

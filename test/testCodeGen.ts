@@ -154,10 +154,10 @@ async function testIntegratedPreview() {
   console.log('=' .repeat(60));
   
   // Check required environment variables
-  if (!process.env.OPENAI_API_KEY) {
-    console.error('❌ Missing OPENAI_API_KEY in .env');
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('❌ Missing ANTHROPIC_API_KEY in .env');
     console.log('Add this to your .env file:');
-    console.log('OPENAI_API_KEY=your_openai_key_here');
+    console.log('ANTHROPIC_API_KEY=your_anthropic_key_here');
     process.exit(1);
   }
   
@@ -184,7 +184,7 @@ async function testIntegratedPreview() {
     timestamp: new Date().toISOString()
   }));
   
-  console.log('\n⏳ Starting code generation with real OpenAI integration...\n');
+  console.log('\n⏳ Starting code generation with real Claude integration...\n');
   
   try {
     const startTime = Date.now();

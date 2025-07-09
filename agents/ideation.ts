@@ -268,7 +268,7 @@ async function connectToAgent() {
     // Wait for connection to open
     await new Promise((resolve, reject) => {
       agentWs.on('open', () => {
-        console.log('Agent connection established');
+      console.log('Agent connection established');
         resolve(void 0);
       });
       agentWs.on('error', reject);
@@ -277,29 +277,29 @@ async function connectToAgent() {
     // Send initial settings configuration
     const settings = {
       type: 'Settings',
-      audio: {
-        input: {
-          encoding: 'linear16',
+        audio: {
+          input: {
+            encoding: 'linear16',
           sample_rate: 24000  // Match Deepgram starter - 24kHz
-        },
-        output: {
-          encoding: 'linear16',
+          },
+          output: {
+            encoding: 'linear16',
           sample_rate: 24000,  // Match Deepgram starter - 24kHz
-          container: 'none'
-        }
-      },
-      agent: {
-        listen: {
-          provider: {
-            type: 'deepgram',
-            model: 'nova-3'  // More stable model
+            container: 'none'
           }
         },
-        think: {
-          provider: {
-            type: 'open_ai',
-            model: 'gpt-4o-mini'
+        agent: {
+          listen: {
+            provider: {
+              type: 'deepgram',
+            model: 'nova-3'  // More stable model
+            }
           },
+          think: {
+            provider: {
+              type: 'open_ai',
+              model: 'gpt-4o-mini'
+            },
           /*
              * SYSTEM PROMPT  –  IDEATION & PROMPT-REVIEW AGENT
              * ------------------------------------------------
@@ -385,15 +385,15 @@ CRITICAL REQUIREMENTS - READ CAREFULLY:
 After presenting the complete YAML, ask: "How does that look? Should we build this or adjust anything?"
 
 If they approve, respond briefly like "Perfect! Let's build it!" and stop.`,
-        },
-        speak: {
-          provider: {
-            type: 'deepgram',
+          },
+          speak: {
+            provider: {
+              type: 'deepgram',
             model: 'aura-2-arcas-en'
-          }
-        },
-        greeting: "Hello! How can I help you today?"
-      }
+            }
+          },
+          greeting: "Hello! How can I help you today?"
+        }
     };
 
     agentWs.send(JSON.stringify(settings));
@@ -591,12 +591,12 @@ If they approve, respond briefly like "Perfect! Let's build it!" and stop.`,
           
           console.log(`🎵 [${audioChunkSequence}] Audio chunk: ${data.length} bytes, +${timeSinceLastChunk}ms since last`);
           
-          if (browserWs?.readyState === WebSocket.OPEN) {
-            try {
-              // Send the audio buffer directly without additional conversion
+      if (browserWs?.readyState === WebSocket.OPEN) {
+        try {
+          // Send the audio buffer directly without additional conversion
               browserWs.send(data, { binary: true });
               console.log(`📤 [${audioChunkSequence}] Forwarded to browser successfully`);
-            } catch (error) {
+        } catch (error) {
               console.error(`❌ [${audioChunkSequence}] Error sending audio to browser:`, error);
             }
           } else {
@@ -674,7 +674,7 @@ wss.on('connection', async (ws) => {
       await agent.disconnect();
     }
     if (browserWs === ws) {
-      browserWs = null;
+    browserWs = null;
     }
   });
 

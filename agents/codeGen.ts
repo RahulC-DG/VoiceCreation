@@ -11,7 +11,7 @@
  */
 
 import { WebSocket } from 'ws';
-import { runReplitCodegen } from '../utils/openaiCodegen';
+import { runClaudeCodegen } from '../utils/claudeCodegen';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -131,7 +131,7 @@ export async function startCodeGeneration(
     emitEvent(browserWs, 'codegen-validation-passed', sessionId);
     
     // Step 2: Call Replit codegen with event streaming
-    const result = await runReplitCodegen(validation.processed!, sessionId, {
+    const result = await runClaudeCodegen(validation.processed!, sessionId, {
       onLog: (chunk: string) => {
         emitEvent(browserWs, 'codegen-log', sessionId, { chunk });
       },

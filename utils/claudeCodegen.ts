@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { startLocalPreview } from './localPreview';
@@ -21,31 +21,39 @@ interface GeneratedFile {
   content: string;
 }
 
-/**
- * Generate code using OpenAI GPT-4 and preview it locally.
- * Maintains the same interface as the original Replit integration.
- */
-export async function runOpenAICodegen(
+export async function runClaudeCodegen(
   yamlPrompt: string,
   sessionId: string,
   events: CodegenEvents = {}
 ): Promise<{ previewUrl: string; repoPath: string }> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('Missing OPENAI_API_KEY environment variable');
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error('Missing ANTHROPIC_API_KEY environment variable');
   }
 
-  // Initialize OpenAI client inside the function after env check
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+  const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY
   });
 
-  events.onLog?.('Starting OpenAI code generation...');
+  events.onLog?.('Starting Claude code generation...');
 
   try {
-    // Step 1: Generate the project structure and files
     const systemPrompt = `You are an expert full-stack developer and UI/UX designer. Generate a complete, working web application based on the provided YAML specification.
 
 CRITICAL: NEVER CREATE PLAIN WHITE PAGES WITH JUST TEXT. Every page must be visually rich, professionally designed, and immediately impressive.
+
+🚨 CRITICAL MODULE RESOLUTION RULE (MUST BE FOLLOWED):
+Before writing ANY import statement, you MUST first create the corresponding component file in the files array. This is the #1 cause of build failures.
+
+IMPORT VALIDATION PROCESS:
+1. When writing "import Hero from '../components/Hero'" → MUST create "components/Hero.tsx" file
+2. When writing "import Features from './Features'" → MUST create "Features.tsx" file  
+3. When writing "import Button from '../ui/Button'" → MUST create "ui/Button.tsx" file
+4. NEVER reference components that don't exist in your files array
+5. DOUBLE-CHECK: Every import must have a matching file with proper default export
+
+EXAMPLE WORKFLOW:
+❌ WRONG: Write import statement first, then maybe create component
+✅ CORRECT: Create component file first, then write import statement
 
 CRITICAL ERROR PREVENTION (MUST FOLLOW TO PREVENT BUILD ERRORS):
 - ALWAYS use proper React component imports/exports - never mix default and named imports
@@ -57,6 +65,69 @@ CRITICAL ERROR PREVENTION (MUST FOLLOW TO PREVENT BUILD ERRORS):
 - ALWAYS test that all imports resolve correctly
 - ALWAYS include proper package.json scripts section
 - ALWAYS create mandatory configuration files with exact content
+
+CRITICAL COMPONENT CREATION RULES (PREVENT MODULE NOT FOUND ERRORS):
+- BEFORE adding ANY import statement, MUST create the corresponding component file
+- For every import like "import Hero from '../components/Hero'", MUST create "components/Hero.tsx"
+- NEVER import components that are not created in the files array
+- ALL imported components must be fully implemented, not placeholders or TODO comments
+- DOUBLE-CHECK every import has a matching file in the files array
+- If you reference a component in JSX, that component MUST exist in the files array
+- VALIDATE that every import path correctly resolves to an existing file
+- Components should be small and focused (ideally under 50 lines each)
+- Break complex components into smaller, reusable pieces
+- Use atomic design principles: atoms → molecules → organisms → templates → pages
+
+BUILD SUCCESS VALIDATION (MANDATORY):
+- The generated project MUST build successfully with 'npm run build'
+- NEVER create partial implementations or TODO comments in production code
+- ALL functionality must be complete and working
+- EVERY import must resolve to an existing file
+- ALL TypeScript types must be properly defined
+- NO missing dependencies or configuration errors
+- Test all critical paths and user flows
+- Include proper error handling for all async operations
+- Add loading states for all data fetching
+- Implement proper form validation where applicable
+
+COMPONENT ORGANIZATION PRINCIPLES:
+- Create small, focused components (max 50 lines each)
+- Use clear, descriptive component names
+- Organize components by feature/domain, not by type
+- Each component should have a single responsibility
+- Use composition over inheritance
+- Create reusable UI components in a shared directory
+- Implement proper prop interfaces for all components
+- Use TypeScript generics for flexible, reusable components
+- Add JSDoc comments for complex component logic
+- Export components using named exports for better tree-shaking
+
+DEBUGGING AND LOGGING:
+- Add console.log statements for debugging complex logic
+- Log important state changes and user interactions
+- Include error boundaries with detailed error logging
+- Add performance monitoring for critical components
+- Log API calls and responses for debugging
+- Include user-friendly error messages
+- Add loading indicators for all async operations
+- Implement proper error recovery mechanisms
+
+SECURITY REQUIREMENTS (MANDATORY):
+- Validate all user inputs on both client and server side
+- Implement proper authentication flows with secure session management
+- Sanitize all data before display to prevent XSS attacks
+- Follow OWASP security guidelines for web applications
+- NEVER expose API keys, secrets, or sensitive data in client-side code
+- Use environment variables for all sensitive configuration
+- Implement proper CORS policies for API endpoints
+- Add rate limiting to prevent abuse
+- Use HTTPS for all external API calls
+- Implement proper error handling that doesn't leak sensitive information
+- Add input validation for all forms and API endpoints
+- Use parameterized queries to prevent SQL injection (if using databases)
+- Implement proper password hashing and storage (if handling auth)
+- Add CSRF protection for state-changing operations
+- Use secure HTTP headers (Content-Security-Policy, X-Frame-Options, etc.)
 
 IMPORTANT REQUIREMENTS:
 1. Return ONLY valid JSON in this exact format: {"files": [{"path": "relative/path/file.ext", "content": "file content here"}]}
@@ -340,6 +411,25 @@ ERROR PREVENTION CHECKLIST:
 ✓ All icons are imported from lucide-react
 ✓ All components handle loading/error states
 ✓ All pages are responsive and accessible
+✓ EVERY imported component has a corresponding file in the files array
+✓ NO placeholders or TODO comments in production code
+✓ ALL components are under 50 lines and focused on single responsibility
+✓ Project builds successfully with 'npm run build'
+✓ ALL TypeScript types are properly defined with no 'any' types
+✓ ALL async operations have proper error handling
+✓ ALL forms have proper validation and error messages
+✓ ALL API calls have loading states and error recovery
+✓ Components are organized by feature/domain
+✓ Console.log statements added for debugging complex logic
+✓ Error boundaries implemented for production stability
+✓ Performance monitoring added for critical components
+✓ ALL user inputs are validated on both client and server side
+✓ NO API keys or secrets exposed in client-side code
+✓ Environment variables used for all sensitive configuration
+✓ All data sanitized before display to prevent XSS
+✓ Proper authentication flows implemented if needed
+✓ Input validation added to all forms and API endpoints
+✓ Error handling doesn't leak sensitive information
 
 MANDATORY SECTIONS FOR LANDING PAGES:
 1. Navigation bar with logo and menu items
@@ -356,76 +446,113 @@ The application should be immediately runnable with 'npm install && npm run dev'
 
 ${yamlPrompt}
 
-Return the complete project as JSON with the files array format specified above.`;
+CRITICAL: Return the complete project as JSON with the files array format specified above.
+NEVER use backticks in your JSON response - only use double quotes for strings.
+Always escape quotes, newlines, and backslashes properly in the content field.
+Your response must be valid JSON that can be parsed by JSON.parse().
 
-    events.onLog?.('Calling OpenAI GPT-4 to generate project files...');
+Example format:
+{"files": [{"path": "pages/index.tsx", "content": "import React from 'react';\\n\\nconst Home = () => {\\n  return <div>Hello World</div>;\\n};\\n\\nexport default Home;"}]}`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
+    events.onLog?.('Calling Claude to generate project files...');
+
+    const completion = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 8000,
       temperature: 0.1,
-      max_tokens: 8000
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
     });
 
-    const response = completion.choices[0]?.message?.content;
+    const response = completion.content[0]?.type === 'text' ? completion.content[0].text : '';
     if (!response) {
-      throw new Error('OpenAI returned empty response');
+      throw new Error('Claude returned empty response');
     }
 
     events.onLog?.('Parsing generated files...');
 
-    // Parse the JSON response
+    // Parse the JSON response - Claude often adds conversational text
     let filesData: { files: GeneratedFile[] };
     try {
-      // Extract JSON from response (in case there's extra text)
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in OpenAI response');
+      // First, try to find JSON in code blocks
+      const codeBlockMatch = response.match(/```json\s*\n([\s\S]*?)\n```/);
+      if (codeBlockMatch) {
+        filesData = JSON.parse(codeBlockMatch[1]);
+      } else {
+        // Look for JSON object pattern - more robust for Claude responses
+        const jsonMatch = response.match(/\{[\s\S]*"files"[\s\S]*\}/);
+        if (!jsonMatch) {
+          // Try to find any JSON-like structure
+          const anyJsonMatch = response.match(/\{[\s\S]*\}/);
+          if (!anyJsonMatch) {
+            throw new Error('No JSON found in Claude response');
+          }
+          filesData = JSON.parse(anyJsonMatch[0]);
+        } else {
+          filesData = JSON.parse(jsonMatch[0]);
+        }
       }
-      filesData = JSON.parse(jsonMatch[0]);
     } catch (parseError) {
       events.onLog?.('Failed to parse JSON, attempting to fix...');
-      // Try to clean up common JSON issues
-      const cleaned = response
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      filesData = JSON.parse(cleaned);
+      try {
+        // Try to clean up common JSON issues and Claude's conversational text
+        let cleaned = response
+          .replace(/```json\n?/g, '')
+          .replace(/```\n?/g, '')
+          .replace(/^[^{]*/, '') // Remove any text before first {
+          .replace(/[^}]*$/, '') // Remove any text after last }
+          .trim();
+        
+        // Fix Claude's backtick usage in JSON content fields
+        // This is a more robust approach to handle backticks in JSON
+        cleaned = cleaned.replace(/("content":\s*)`([^`]*)`/gs, (match, prefix, content) => {
+          // Properly escape all special characters for JSON
+          const escapedContent = content
+            .replace(/\\/g, '\\\\')    // Escape backslashes first
+            .replace(/"/g, '\\"')      // Escape quotes
+            .replace(/\n/g, '\\n')     // Escape newlines
+            .replace(/\r/g, '\\r')     // Escape carriage returns
+            .replace(/\t/g, '\\t')     // Escape tabs
+            .replace(/\f/g, '\\f')     // Escape form feeds
+            .replace(/\b/g, '\\b');    // Escape backspaces
+          return `${prefix}"${escapedContent}"`;
+        });
+        
+        // If still no valid JSON, try to extract from the middle
+        const jsonStart = cleaned.indexOf('{');
+        const jsonEnd = cleaned.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+        }
+        
+        filesData = JSON.parse(cleaned);
+      } catch (secondError) {
+        // Log the actual response for debugging
+        events.onLog?.(`Raw Claude response: ${response.substring(0, 200)}...`);
+        throw new Error(`Failed to parse JSON from Claude response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
     }
 
     if (!filesData.files || !Array.isArray(filesData.files)) {
       throw new Error('Invalid response format: missing files array');
     }
 
-    events.onLog?.(`Generated ${filesData.files.length} files. Creating project structure...`);
-
-    // Step 2: Create the project directory structure
     const genDir = path.join(process.cwd(), 'generated', sessionId);
     const repoDir = path.join(genDir, 'repo');
     
-    // Clean up any existing directory
     if (fs.existsSync(genDir)) {
       fs.rmSync(genDir, { recursive: true, force: true });
     }
     fs.mkdirSync(repoDir, { recursive: true });
 
-    // Step 3: Write all files to disk
     for (const file of filesData.files) {
       const fullPath = path.join(repoDir, file.path);
       const dir = path.dirname(fullPath);
-      
-      // Create directory if it doesn't exist
       fs.mkdirSync(dir, { recursive: true });
-      
-      // Write file content
       fs.writeFileSync(fullPath, file.content, 'utf8');
       events.onLog?.(`Created: ${file.path}`);
     }
 
-    // Step 4: Build file tree for frontend
     const buildTree = (dir: string): FileNode => {
       const name = path.basename(dir);
       const stats = fs.statSync(dir);
@@ -442,8 +569,6 @@ Return the complete project as JSON with the files array format specified above.
     events.onFileTree?.(buildTree(repoDir));
     events.onLog?.('Project structure created successfully!');
 
-    // Step 5: Start local preview
-    events.onLog?.('Starting local development server...');
     const handle = await startLocalPreview(repoDir, events.onLog || (() => {}));
     
     events.onPreviewReady?.(handle.url);
@@ -461,3 +586,5 @@ Return the complete project as JSON with the files array format specified above.
   }
 }
 
+// Legacy alias for backward compatibility
+export const runOpenAICodegen = runClaudeCodegen; 
