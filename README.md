@@ -84,7 +84,7 @@ Conversation Context → GPT-4 Analysis → YAML Generation → User Approval
 
 ### **Phase 3: Code Generation (AI → Full Application)**
 ```
-YAML Specification → GPT-4 Code Generation → File System Creation → Local Preview
+YAML Specification → Claude Sonnet Code Generation → File System Creation → Local Preview
 ```
 1. **Specification Processing**: AI analyzes approved YAML requirements
 2. **Architecture Planning**: Determines optimal file structure and components
