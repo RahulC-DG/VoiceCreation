@@ -12,6 +12,133 @@ interface CodeGenEvent {
   [key: string]: any;
 }
 
+// Subtle Progress Bar Component
+const ConversationProgressBar = ({ currentPhase, messages }: { 
+  currentPhase: 'ideation' | 'prompt_review' | 'code_generation' | 'voice_editing',
+  messages: Message[]
+}) => {
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  
+  const phases = [
+    { 
+      id: 'ideation', 
+      words: ['Discovering', 'Exploring', 'Analyzing', 'Investigating']
+    },
+    { 
+      id: 'prompt_review', 
+      words: ['Designing', 'Planning', 'Structuring', 'Crafting']
+    },
+    { 
+      id: 'code_generation', 
+      words: ['Building', 'Creating', 'Generating', 'Coding']
+    },
+    { 
+      id: 'voice_editing', 
+      words: ['Refining', 'Polishing', 'Enhancing', 'Perfecting']
+    }
+  ];
+
+  const getCurrentPhaseIndex = () => {
+    return phases.findIndex(phase => phase.id === currentPhase);
+  };
+
+  const getProgressPercentage = () => {
+    const currentIndex = getCurrentPhaseIndex();
+    if (currentIndex === -1) return 10; // Always show some progress
+    
+    // Calculate progress within current phase based on message count - much faster progression
+    const baseProgress = (currentIndex / phases.length) * 100;
+    const phaseProgress = Math.min(messages.length * 10, 30); // Max 30% progress within phase, much faster
+    
+    return Math.max(10, Math.min(baseProgress + phaseProgress, 100)); // Minimum 10% progress
+  };
+
+  const getCurrentPhaseWords = () => {
+    const currentIndex = getCurrentPhaseIndex();
+    return phases[currentIndex]?.words || ['Starting', 'Initializing', 'Loading', 'Preparing'];
+  };
+
+  const getCurrentWord = () => {
+    const words = getCurrentPhaseWords();
+    return words[currentWordIndex % words.length];
+  };
+
+  // Rotate words every 1.5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentWordIndex(prev => prev + 1);
+    }, 1500);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Reset word index when phase changes
+  useEffect(() => {
+    setCurrentWordIndex(0);
+  }, [currentPhase]);
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
+    }}>
+      {/* Progress Bar Container */}
+      <div style={{
+        width: '200px',
+        height: '20px',
+        background: '#e2e8f0',
+        borderRadius: '10px',
+        overflow: 'hidden',
+        border: '1px solid #cbd5e1',
+        position: 'relative',
+        boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)'
+      }}>
+        {/* Progress Fill */}
+        <div style={{
+          width: `${getProgressPercentage()}%`,
+          height: '100%',
+          background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)',
+          borderRadius: '9px',
+          transition: 'width 0.8s ease',
+          position: 'relative',
+          boxShadow: '0 1px 3px rgba(59, 130, 246, 0.3)'
+        }}>
+          {/* Shimmer Effect */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+            animation: 'shimmer 2s infinite'
+          }} />
+        </div>
+      </div>
+
+      {/* Phase Label */}
+      <div style={{
+        fontSize: '14px',
+        fontWeight: '500',
+        color: '#64748b',
+        minWidth: '80px',
+        transition: 'opacity 0.3s ease'
+      }}>
+        {getCurrentWord()}...
+      </div>
+
+      {/* CSS Animation */}
+      <style jsx>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<string>('Disconnected');
@@ -501,6 +628,18 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Floating Progress Bar */}
+        <div style={{
+          padding: '12px 20px',
+          background: '#f8fafc',
+          borderBottom: '1px solid #e2e8f0',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <ConversationProgressBar currentPhase={currentPhase} messages={messages} />
+        </div>
+
         {/* Messages */}
         <div 
           ref={messagesContainerRef}
@@ -801,7 +940,7 @@ export default function Home() {
             )}
           </div>
         </div>
-      )}
+              )}
 
       {/* CSS Animation */}
       <style jsx>{`

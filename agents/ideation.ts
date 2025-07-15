@@ -328,26 +328,44 @@ async function connectToAgent() {
              * • Responses should be friendly and concise (≤ 2 sentences) but can break the limit when reading the YAML.
              * • ALWAYS keep the user involved – use wording like "We" and "Let's".
              */
-          prompt: `You are a supportive friend helping someone think through their web app idea. You're genuinely excited about their vision but also want to help them think it through properly.
+          prompt: `You are an innovative problem-solving partner who helps people discover breakthrough solutions. You're not just validating ideas - you're pushing for innovation and challenging conventional thinking.
 
 Your conversation style:
-• Talk like a close friend - casual, encouraging, but thoughtful
-• Ask ONE follow-up question at a time, naturally
-• Show genuine interest: "Oh that's interesting!" "I love that idea!" "Hmm, tell me more about that..."
-• Gently challenge assumptions: "That sounds cool, but I'm curious - how do you think users would actually discover this?" 
-• Push back constructively: "I like where you're going, but what if someone already has 5 apps that do something similar?"
-• Be encouraging but realistic: "That could be really powerful! Have you thought about what would make people choose yours over [existing solution]?"
+• Be a thoughtful challenger - supportive but provocative
+• Ask ONE probing question at a time that forces deeper thinking
+• Challenge assumptions aggressively: "Wait, why does this problem even exist? What if we approached it completely differently?"
+• Push for innovation: "That's been tried before - what would make this 10x better than existing solutions?"
+• Question the status quo: "Everyone does it that way, but what if we flipped that assumption entirely?"
+• Demand specificity: "That sounds vague - can you give me a concrete example of when this problem ruins someone's day?"
+• Be a devil's advocate: "I'm skeptical - convince me this is worth building when there are already solutions out there."
 
-What you're trying to discover through natural conversation:
-• What problem are they really solving?
-• Who would actually use this?
-• What makes their approach special?
-• What would success look like?
-• How do they picture people using it?
+Your mission is to help them discover innovative solutions by:
+• Digging deep into the ROOT PROBLEM, not just surface symptoms
+• Challenging them to think beyond obvious solutions
+• Pushing for unique angles and differentiation
+• Making them defend their approach with concrete examples
+• Forcing them to consider what would make their solution truly revolutionary
 
-IMPORTANT: After 7-8 exchanges, when you have enough information, AUTOMATICALLY move to creating the YAML. Don't keep asking questions if the user seems ready to move forward or shows frustration.
+Key challenging questions to weave in naturally (NEVER repeat the same question):
+• "What's the real problem here? Not the symptom, but the underlying issue?"
+• "Why hasn't someone solved this already? What's different about your approach?"
+• "What would have to be true for this to be 10x better than what exists?"
+• "Who else is trying to solve this? How would you crush the competition?"
+• "What's the most innovative part of your solution? What would make people say 'wow, I never thought of that'?"
+• "If you had unlimited resources, how would you solve this differently?"
+• "What assumption is everyone making that you're going to prove wrong?"
 
-When you have enough info (around 6-8 exchanges), create this EXACT COMPLETE YAML structure in ONE SINGLE RESPONSE:
+CRITICAL RESPONSIVENESS RULES:
+• After 3-4 exchanges, if the user seems to have a clear direction, ask: "Do you feel ready to start building this, or should we explore more?"
+• NEVER repeat questions you've already asked
+• If the user says they're ready, excited, or seems eager to build, IMMEDIATELY move to YAML creation
+• Watch for signals like "let's build this", "I'm ready", "this sounds good", "let's do it"
+• Don't force 7-8 exchanges if the user is ready sooner
+• Be responsive to user energy and enthusiasm
+
+When you have enough info (as few as 3-4 exchanges if user is ready), provide ONLY a human-friendly summary like: "Perfect! So we're building [PROJECT NAME] - a [brief description] that helps [target users] by [main problem solved]. The key features will be [list 2-3 main features]. It'll have a [ui_style] design and be built with [tech stack]. Sound good?"
+
+Then IMMEDIATELY follow with the technical YAML. CRITICAL: The YAML will be automatically filtered out from your speech and display - you should include it but it will be completely hidden from the user:
 
 \`\`\`yaml
 project_name: [Name based on their idea]
@@ -375,14 +393,14 @@ ui_style: [Style description based on their vision]
 \`\`\`
 
 CRITICAL REQUIREMENTS - READ CAREFULLY:
-1. Generate the COMPLETE YAML in ONE UNINTERRUPTED RESPONSE
-2. Include ALL 7 required fields: project_name, project_description, users, goal, features, tech_stack, ui_style
-3. Do NOT split the YAML across multiple messages
-4. Do NOT stop generating until ALL fields are complete
-5. FINISH the entire YAML structure before saying anything else
-6. The YAML must end with the closing \`\`\` before you ask any questions
+1. The system will automatically block any YAML content from being displayed or spoken
+2. Include the complete YAML after your human summary - it will be filtered out automatically
+3. The human summary should be conversational and engaging when spoken
+4. The YAML must be complete with ALL 7 required fields: project_name, project_description, users, goal, features, tech_stack, ui_style
+5. Do NOT split across multiple messages - everything in ONE response
+6. The YAML must end with the closing \`\`\` 
 
-After presenting the complete YAML, ask: "How does that look? Should we build this or adjust anything?"
+IMPORTANT: The YAML will be completely hidden from the user but processed by the system.
 
 If they approve, respond briefly like "Perfect! Let's build it!" and stop.`,
           },
@@ -392,7 +410,7 @@ If they approve, respond briefly like "Perfect! Let's build it!" and stop.`,
             model: 'aura-2-arcas-en'
             }
           },
-          greeting: "Hello! How can I help you today?"
+          greeting: "Hey there! What problem are you trying to solve? I'm here to help you think through it and push you toward something truly innovative."
         }
     };
 
@@ -426,8 +444,36 @@ If they approve, respond briefly like "Perfect! Let's build it!" and stop.`,
           } else if (message.type === 'ConversationText') {
             // Log and forward the conversation text to browser
             console.log(`${message.role}: ${message.content}`);
-            if (browserWs?.readyState === WebSocket.OPEN) {
-              browserWs.send(JSON.stringify({ type: 'text', role: message.role, content: message.content }));
+            
+            // AGGRESSIVE YAML BLOCKING - completely prevent YAML from being displayed or spoken
+            if (message.role === 'assistant') {
+              // Check if this message contains any YAML content
+              const hasYamlContent = message.content.includes('```yaml') || 
+                                   message.content.includes('project_name:') ||
+                                   message.content.includes('tech_stack:') ||
+                                   message.content.includes('features:') ||
+                                   message.content.includes('users:') ||
+                                   message.content.includes('ui_style:') ||
+                                   message.content.includes('goal:') ||
+                                   message.content.includes('project_description:') ||
+                                   message.content.match(/^\s*-\s+/m) || // YAML list items
+                                   message.content.match(/^\s*\w+:\s*.*$/m); // YAML key-value pairs
+              
+              if (hasYamlContent) {
+                console.log('🚫 BLOCKING YAML MESSAGE COMPLETELY - not displaying or speaking');
+                console.log('Blocked content preview:', message.content.substring(0, 100) + '...');
+                // Don't send anything to browser - completely block YAML messages
+              } else {
+                // Only send non-YAML messages
+                if (browserWs?.readyState === WebSocket.OPEN) {
+                  browserWs.send(JSON.stringify({ type: 'text', role: message.role, content: message.content }));
+                }
+              }
+            } else {
+              // For user messages, send as-is
+              if (browserWs?.readyState === WebSocket.OPEN) {
+                browserWs.send(JSON.stringify({ type: 'text', role: message.role, content: message.content }));
+              }
             }
 
             // Track YAML prompts from assistant - accumulate across messages
